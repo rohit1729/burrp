@@ -4,7 +4,7 @@ Privacy-focused file organizer using local Ollama models. Burrp scans a folder, 
 
 ## Features
 
-- **Local AI Processing**: Uses Ollama's gemma3 model by default (completely offline)
+- **Local AI Processing**: Uses Ollama's gemma3:4b model by default (completely offline)
 - **Smart Categorization**: Automatic file type detection with AI fallback for unknown files
 - **Privacy First**: No cloud services, no data leaves your machine
 - **Dry Run Mode**: Preview changes before organizing
@@ -25,8 +25,8 @@ pip install -r requirements.txt
 brew install ollama
 ollama serve &
 
-# Pull the gemma3 model
-ollama pull gemma3
+# Pull the gemma3:4b model
+ollama pull gemma3:4b
 ```
 
 3. Install Burrp:
@@ -85,7 +85,7 @@ Burrp auto-creates a config file at `~/.config/burrp/config.json` on first run:
 
 ```json
 {
-  "model": "gemma3",
+  "model": "gemma3:4b",
   "categories": {
     "Images": [".png", ".jpg", ".jpeg", ".gif", ".bmp", ".svg", ".webp", ".ico"],
     "Documents": [".pdf", ".doc", ".docx", ".txt", ".rtf", ".odt", ".md"],

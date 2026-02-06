@@ -6,6 +6,7 @@ from pathlib import Path
 from datetime import datetime
 from argparse import ArgumentParser
 from ollama import Client
+import logging
 
 
 class Burrp:
@@ -16,10 +17,14 @@ class Burrp:
             Path(config_path) if config_path else self.config_dir / "config.json"
         )
         self.history_file = self.config_dir / "history.json"
+        self.ai_log_file = self.config_dir / "ai_interactions.log"
         self.verbose = verbose
 
+        # Set up AI interaction logging
+        self._setup_ai_logger()
+
         self.defaults = {
-            "model": "gemma3",
+            "model": "gemma3:4b",
             "categories": {
                 "Images": [
                     ".png",
@@ -57,11 +62,36 @@ class Burrp:
         }
 
         self.config = self._load_config()
-        self.model = model or self.config.get("model", "gemma3")
+        self.model = model or self.config.get("model", "gemma3:4b")
         self.categories = self.config.get("categories", self.defaults["categories"])
 
         self.client = Client(host="http://localhost:11434")
         self._ensure_config_exists()
+
+    def _setup_ai_logger(self):
+        """Set up logging for AI interactions to a separate file"""
+        self.config_dir.mkdir(parents=True, exist_ok=True)
+
+        # Create a separate logger for AI interactions
+        self.ai_logger = logging.getLogger("burrp_ai")
+        self.ai_logger.setLevel(logging.INFO)
+
+        # Remove any existing handlers
+        self.ai_logger.handlers = []
+
+        # Create file handler
+        fh = logging.FileHandler(self.ai_log_file)
+        fh.setLevel(logging.INFO)
+
+        # Create formatter
+        formatter = logging.Formatter("%(asctime)s - %(message)s")
+        fh.setFormatter(formatter)
+
+        # Add handler to logger
+        self.ai_logger.addHandler(fh)
+
+        # Prevent propagation to root logger
+        self.ai_logger.propagate = False
 
     def _ensure_config_exists(self):
         self.config_dir.mkdir(parents=True, exist_ok=True)
@@ -110,17 +140,31 @@ class Burrp:
         try:
             prompt = f"""Categorize the file "{filename}" into one of these folders: {", ".join(self.categories.keys())}. Return only the folder name, nothing else."""
 
+            # Log the prompt being sent to AI
+            self.ai_logger.info(f"\n{'=' * 80}")
+            self.ai_logger.info(f"FILE: {filename}")
+            self.ai_logger.info(f"MODEL: {self.model}")
+            self.ai_logger.info(f"PROMPT: {prompt}")
+
             response = self.client.chat(
                 model=self.model, messages=[{"role": "user", "content": prompt}]
             )
 
             category = response["message"]["content"].strip()
+
+            # Log the AI response
+            self.ai_logger.info(f"RAW RESPONSE: {response['message']['content']}")
+            self.ai_logger.info(f"CATEGORIZED AS: {category}")
+            self.ai_logger.info(f"VALID: {category in self.categories}")
+
             if category in self.categories:
                 return category
         except Exception as e:
+            self.ai_logger.error(f"ERROR: {str(e)}")
             if self.verbose:
                 print(f"Warning: Could not categorize {filename}: {e}")
 
+        self.ai_logger.info(f"FINAL CATEGORY: Other (fallback)")
         return "Other"
 
     def organize(self, dry_run=False):
@@ -131,6 +175,7 @@ class Burrp:
         print(f"Organizing files in: {self.target_folder}")
         print(f"Model: {self.model}")
         print(f"Dry run: {'YES' if dry_run else 'NO'}")
+        print(f"AI Log: {self.ai_log_file}")
         print("-" * 50)
 
         files_moved = 0
@@ -229,7 +274,7 @@ class Burrp:
 def main():
     parser = ArgumentParser(description="Burrp - Organize your files with local AI")
     parser.add_argument("folder", help="Folder to organize")
-    parser.add_argument("--model", help="Ollama model to use (default: gemma3)")
+    parser.add_argument("--model", help="Ollama model to use (default: gemma3:4b)")
     parser.add_argument(
         "--dry-run", action="store_true", help="Preview changes without moving files"
     )
