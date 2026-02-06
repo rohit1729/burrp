@@ -101,11 +101,11 @@ class Burrp:
         history_file.write_text(json.dumps(history, indent=2))
 
     def _get_category(self, filename):
-        ext = Path(filename).suffix.lower()
+        # ext = Path(filename).suffix.lower()
 
-        for category, extensions in self.categories.items():
-            if ext in extensions:
-                return category
+        # for category, extensions in self.categories.items():
+        #     if ext in extensions:
+        #         return category
 
         try:
             prompt = f"""Categorize the file "{filename}" into one of these folders: {", ".join(self.categories.keys())}. Return only the folder name, nothing else."""
